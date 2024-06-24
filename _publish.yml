@@ -1,0 +1,4 @@
+- source: project
+  quarto-pub:
+    - id: 7358ff1d-cf9b-4c5c-90b2-824d1fa45734
+      url: 'https://skawakam.quarto.pub/correlation-between-coivd-and-flu'

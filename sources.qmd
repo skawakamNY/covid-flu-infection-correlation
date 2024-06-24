@@ -1,0 +1,7 @@
+The dataset used for the project was obtained from the following websites.
+
+[COVID infection rate]
+https://www.cdc.gov/flu/weekly/index.htm#ClinicalLaboratories
+
+[Flu infection rate]
+https://covid.cdc.gov/covid-data-tracker/#trends_select_testpositivity_00

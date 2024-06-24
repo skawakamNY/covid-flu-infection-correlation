@@ -1,0 +1,22 @@
+---
+title: "Correlation Between COVID and Flu"
+execute: 
+  echo: false
+---
+The reason why I chose this project for the class was, I was curious to find out whether if there is any correlation between COVID and Flu infection as people were saying during the pandemic, number of people infected with flu was much lower than past years.  After collecting data from the CDC website and combining data for COVID and Flu together to draw on the infection rate on the same graph, I noticed there was a negative correlation in some degree as variables for COVID and Flu infection rate moved in opposite direction (2022).  The data used in the project was collected from the CDC website where both COVID and flu infection rate during the pandemic was available.  After downloading CVS files to the local machine, data was loaded into the RStudio and using the graphing tool to post a graph which demonstrated correlation between COVID and Flu on the website.
+```{r}
+#| label: setup
+#| message: false
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+#| message: false
+#| warning: false
+covid_infection_rate <- read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y"))) |> mutate(WEEK = as.integer(strftime(Date, format="%V")), YEAR = year(Date), TYPE = "covid", INFECTION_RATE = as.numeric(Weekly_Percent_Test_Positivity))
+flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv") |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE)
+infection_rate <- bind_rows(covid_infection_rate |> select(YEAR, WEEK, INFECTION_RATE, TYPE), flu_infection_rate |> select(YEAR, WEEK, INFECTION_RATE, TYPE))
+infection_rate |> ggplot(aes(x = WEEK, y = INFECTION_RATE, color = TYPE)) + geom_line(size = 1) + facet_wrap(~ YEAR) + labs(title = "Infection Rate of COVID and Flu (Type A and Type B combined)", subtitle = "Graph by each year", x="Week", y="Infection Rate",  color="Virus", caption="Source: U.S. Centers for Disease Control and Prevention (cdc.gov)")
+```
+
