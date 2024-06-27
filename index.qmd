@@ -9,14 +9,54 @@ The reason why I chose this project for the class was, I was curious to find out
 #| message: false
 library(tidyverse)
 library(dplyr)
+library(ISOweek)
 ```
 
 ```{r}
 #| message: false
-#| warning: false
-covid_infection_rate <- read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y"))) |> mutate(WEEK = as.integer(strftime(Date, format="%V")), YEAR = year(Date), TYPE = "covid", INFECTION_RATE = as.numeric(Weekly_Percent_Test_Positivity))
-flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv") |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE)
-infection_rate <- bind_rows(covid_infection_rate |> select(YEAR, WEEK, INFECTION_RATE, TYPE), flu_infection_rate |> select(YEAR, WEEK, INFECTION_RATE, TYPE))
-infection_rate |> ggplot(aes(x = WEEK, y = INFECTION_RATE, color = TYPE)) + geom_line(size = 1) + facet_wrap(~ YEAR) + labs(title = "Infection Rate of COVID and Flu (Type A and Type B combined)", subtitle = "Graph by each year", x="Week", y="Infection Rate",  color="Virus", caption="Source: U.S. Centers for Disease Control and Prevention (cdc.gov)")
+get_monday_by_date <- function(date) {
+  # Ensure the input is a date
+  date <- as.Date(date)
+  # Calculate the difference from Monday
+  diff_to_monday <- wday(date, week_start = 1) - 1
+  # Subtract the difference from the date
+  monday_date <- date - diff_to_monday
+  return(monday_date)
+}
+get_monday_by_year_week <- function(year, week) {
+  week_in_string <- sprintf("%d-W%02d-1", year, week)
+  monday_of_week <- ISOweek::ISOweek2date(week_in_string)
+  return(monday_of_week)
+}
+
+covid_infection_rate <- 
+  read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y"))) |> filter(!is.na(Weekly_Percent_Test_Positivity))|> 
+  mutate(TYPE = "covid", INFECTION_RATE = as.numeric(Weekly_Percent_Test_Positivity), REPORT_DATE = get_monday_by_date(Date))
+
+flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv") |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE, REPORT_DATE = get_monday_by_year_week(YEAR, WEEK))
+
+infection_rate <- bind_rows(covid_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE), flu_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE))
+
+infection_rate |> ggplot(aes(x = REPORT_DATE, y = 
+                               INFECTION_RATE, color = TYPE)) + geom_line(linewidth = 1) + 
+  scale_x_date(
+    date_breaks = "1 week"
+  ) +labs(title = "Infection Rate of COVID and Flu (Type A and Type B combined)", subtitle = "Noticeable Negative Correlation in 2020", x="Week", y="Infection Rate",  color="Virus", caption="Source: U.S. Centers for Disease Control and Prevention (cdc.gov)") +  theme(aspect.ratio = 2/8) + scale_x_date(date_labels = "%Y", date_breaks = "1 year")
+
+widened_infection_rate <- infection_rate |> filter(REPORT_DATE >= as.Date("2020-03-14")) |> select(REPORT_DATE, TYPE, INFECTION_RATE) |> pivot_wider(names_from = TYPE, values_from = INFECTION_RATE)
+
+  scatter_plot <- ggplot(widened_infection_rate, aes(x = covid, y = flu)) +
+  geom_point() +
+  facet_wrap(~ year(REPORT_DATE)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "COVID Infection Rate", y = "Flu Infection Rate", title = "Scattered Plot showing Correlation between COVID and Flu Infection Rate")
+
+correlation_coef <- cor(widened_infection_rate$covid, widened_infection_rate$flu)
+scatter_plot_with_cor <- scatter_plot +
+  annotate("text", x = min(widened_infection_rate$covid), y = max(widened_infection_rate$flu)
+, 
+           label = paste("Correlation:", round(correlation_coef, 2)))
+# Print the plot
+print(scatter_plot_with_cor)
 ```
 
