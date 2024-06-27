@@ -1,0 +1,65 @@
+---
+execute:
+  echo: false
+---
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(dplyr)
+library(ISOweek)
+```
+## Scattered graph of COVID and Flu infection rate
+The second graph is a scattered graph where x-axis is infection rate of COVID and y-axis is infection rate of Flu by year which helps us visualize how the infection rates are correlated.  The graphs also contains linear regression lines which were computed by each infection rates.
+
+```{r}
+get_monday_by_date <- function(date) {
+  # Ensure the input is a date
+  date <- as.Date(date)
+  # Calculate the difference from Monday
+  diff_to_monday <- wday(date, week_start = 1) - 1
+  # Subtract the difference from the date
+  monday_date <- date - diff_to_monday
+  return(monday_date)
+}
+get_monday_by_year_week <- function(year, week) {
+  week_in_string <- sprintf("%d-W%02d-1", year, week)
+  monday_of_week <- ISOweek::ISOweek2date(week_in_string)
+  return(monday_of_week)
+}
+
+covid_infection_rate <- 
+  read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y")), show_col_types = FALSE) |> filter(!is.na(Weekly_Percent_Test_Positivity))|> 
+  mutate(TYPE = "covid", INFECTION_RATE = as.numeric(Weekly_Percent_Test_Positivity), REPORT_DATE = get_monday_by_date(Date))
+
+flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv", show_col_types = FALSE) |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE, REPORT_DATE = get_monday_by_year_week(YEAR, WEEK))
+
+infection_rate <- bind_rows(covid_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE), flu_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE))
+
+widened_infection_rate <- infection_rate |> filter(REPORT_DATE >= as.Date("2020-03-14")) |> select(REPORT_DATE, TYPE, INFECTION_RATE) |> pivot_wider(names_from = TYPE, values_from = INFECTION_RATE)
+
+  scatter_plot <- ggplot(widened_infection_rate, aes(x = covid, y = flu)) +
+  geom_point(color = "black", alpha = 0.75) +
+  facet_wrap(~ year(REPORT_DATE)) +
+  geom_smooth(method = "lm", se = TRUE, color="blue", alpha = 0.5, formula = y ~ x) +
+  labs(x = "COVID Infection Rate (%)", y = "Flu Infection Rate (%)", title = "Scattered Plot showing Correlation between COVID and Flu Infection Rate in each year")
+
+correlation_coef <- cor(widened_infection_rate$covid, widened_infection_rate$flu)
+correlation_coef_2022 <- cor(widened_infection_rate$covid[year(widened_infection_rate$REPORT_DATE) == 2022], widened_infection_rate$flu[year(widened_infection_rate$REPORT_DATE) == 2022])
+scatter_plot_with_cor <- scatter_plot +
+  annotate("text", x = min(widened_infection_rate$covid), y = max(widened_infection_rate$flu)
+, 
+           label = "")
+# Print the plot
+print(scatter_plot_with_cor)
+```
+*The overall correlation coefficient (statistical measure of the strength of a linear relationship between two variables) is `r correlation_coef`.  However, correlation coefficient for 2022 is `r correlation_coef_2022`.*
+
+## Conclusion
+
+There are number of external factors affected decrease in infection rate of Flu but I do see some degree of negative correlation especially in the year of 2022 which was right in middle of the pandemic where infection rate of COVID went up when infection rate of Flu went down and vice verse.  As the graphs indicate, the correlation between COVID and the flu has been a subject of extensive study so we need further analysis before we can reach a decisive conclusion.
+
+
+

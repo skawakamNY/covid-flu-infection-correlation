@@ -1,19 +1,26 @@
 ---
-title: "Correlation Between COVID and Flu"
 execute: 
   echo: false
 ---
-The reason why I chose this project for the class was, I was curious to find out whether if there is any correlation between COVID and Flu infection as people were saying during the pandemic, number of people infected with flu was much lower than past years.  The data used in the project was collected from the CDC website where both COVID and flu infection rate during the pandemic was available.  After downloading CVS files to the local machine, data was loaded into the Quarto document where ggplot2 package was used to draw a graph which included both infection rate of COVID and Flu for further analysis.  Based on the graph of infection rate for COVID and flu across past few years, I noticed there was a negative correlation in some degree as variables for COVID and Flu infection rate moved in opposite direction (2022).  
+## Introduction
+As we all know that pandemic which was caused by wide spread of COVID virus started spring of 2020 (it was declared by WHO on 3/11/2020) and ended at spring of 2023 (declared by WHO that it ended on 5/11/2023).  During the pandemic, 
+it was noticed that number of people who were infected by flu virus was much lower than prior years.  The hypothesis which I would like to propose and decided to choose as the data science project is whether if there is any correlation between COVID and Flu infection, so I searched for the data set of infection rate of both viruses that could be used to draw a graph and it turned out that they were available at CDC website.  Since COVID and Flu infection rate data were accessible separately and the data format was different, I had to do some data transformations in order to combine them into one data source and use it to draw on the same graphes.
+
+## Line Graph of Infection Rate of COVID and Flu
+The first graph is infection rate of COVID and Flu virus over time span of past few years including years we had pandemic.
+
 ```{r}
 #| label: setup
 #| message: false
+#| warning: false
 library(tidyverse)
 library(dplyr)
-library(ISOweek)
+suppressPackageStartupMessages(library(ISOweek))
 ```
 
 ```{r}
 #| message: false
+#| warning: false
 get_monday_by_date <- function(date) {
   # Ensure the input is a date
   date <- as.Date(date)
@@ -30,33 +37,21 @@ get_monday_by_year_week <- function(year, week) {
 }
 
 covid_infection_rate <- 
-  read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y"))) |> filter(!is.na(Weekly_Percent_Test_Positivity))|> 
+  read_csv("data/weekly_covid_infection_rate.csv", col_types = cols(Date = col_date("%b %d %Y")), show_col_types = FALSE) |> filter(!is.na(Weekly_Percent_Test_Positivity))|> 
   mutate(TYPE = "covid", INFECTION_RATE = as.numeric(Weekly_Percent_Test_Positivity), REPORT_DATE = get_monday_by_date(Date))
 
-flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv") |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE, REPORT_DATE = get_monday_by_year_week(YEAR, WEEK))
+flu_infection_rate <- read_csv("data/weekly_flu_infection_rate.csv", show_col_types = FALSE) |> mutate(TYPE = "flu", INFECTION_RATE = PERCENT_POSITIVE, REPORT_DATE = get_monday_by_year_week(YEAR, WEEK))
 
 infection_rate <- bind_rows(covid_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE), flu_infection_rate |> select(INFECTION_RATE, TYPE, REPORT_DATE))
+
+
+
 
 infection_rate |> ggplot(aes(x = REPORT_DATE, y = 
                                INFECTION_RATE, color = TYPE)) + geom_line(linewidth = 1) + 
   scale_x_date(
     date_breaks = "1 week"
-  ) +labs(title = "Infection Rate of COVID and Flu (Type A and Type B combined)", subtitle = "Noticeable Negative Correlation in 2020", x="Week", y="Infection Rate",  color="Virus", caption="Source: U.S. Centers for Disease Control and Prevention (cdc.gov)") +  theme(aspect.ratio = 2/8) + scale_x_date(date_labels = "%Y", date_breaks = "1 year")
+  ) +labs(title = "Infection Rate of COVID and Flu (Type A and Type B combined)", subtitle = "Noticeable Negative Correlation in 2022", x="Year", y="Infection Rate (%)",  color="Virus", caption="Source: U.S. Centers for Disease Control and Prevention (cdc.gov)") +  theme(aspect.ratio = 2/8) + scale_x_date(date_labels = "%Y", date_breaks = "1 year")
 
-widened_infection_rate <- infection_rate |> filter(REPORT_DATE >= as.Date("2020-03-14")) |> select(REPORT_DATE, TYPE, INFECTION_RATE) |> pivot_wider(names_from = TYPE, values_from = INFECTION_RATE)
-
-  scatter_plot <- ggplot(widened_infection_rate, aes(x = covid, y = flu)) +
-  geom_point() +
-  facet_wrap(~ year(REPORT_DATE)) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "COVID Infection Rate", y = "Flu Infection Rate", title = "Scattered Plot showing Correlation between COVID and Flu Infection Rate")
-
-correlation_coef <- cor(widened_infection_rate$covid, widened_infection_rate$flu)
-scatter_plot_with_cor <- scatter_plot +
-  annotate("text", x = min(widened_infection_rate$covid), y = max(widened_infection_rate$flu)
-, 
-           label = paste("Correlation:", round(correlation_coef, 2)))
-# Print the plot
-print(scatter_plot_with_cor)
 ```
 
